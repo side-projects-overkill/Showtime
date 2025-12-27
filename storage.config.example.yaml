@@ -1,0 +1,44 @@
+# Storage Configuration
+# Copy this file to storage.config.yaml and configure your storage connections
+# This file should NOT be committed to version control (add to .gitignore)
+
+connections:
+  # SMB/SAMBA Storage Example
+  - id: smb-storage-1
+    name: My SMB Server
+    type: smb
+    enabled: true
+    host: 192.168.1.100
+    port: 445
+    username: myuser
+    password: mypassword
+    shareName: media
+    basePath: /movies
+
+  # FTP Storage Example
+  - id: ftp-storage-1
+    name: My FTP Server
+    type: ftp
+    enabled: true
+    host: ftp.example.com
+    port: 21
+    username: ftpuser
+    password: ftppassword
+    basePath: /media
+
+  # WebDAV Storage Example
+  - id: webdav-storage-1
+    name: My WebDAV Server
+    type: webdav
+    enabled: false
+    host: https://webdav.example.com
+    username: webdavuser
+    password: webdavpassword
+    basePath: /remote.php/dav/files/username/Media
+
+# Notes:
+# - 'id' must be unique for each connection
+# - 'type' can be: smb, ftp, or webdav
+# - 'enabled' controls whether the connection is active
+# - Set enabled to false to temporarily disable a connection
+# - Port defaults: SMB=445, FTP=21, WebDAV uses host URL
