@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storageManager } from '@/lib/storage/storage-manager';
 import { getMimeType } from '@/lib/utils/media-utils';
-import { getStorageCollection } from '@/lib/db/mongodb';
+import { getStorageConfigById } from '@/lib/config/storage-config';
 import { spawn } from 'child_process';
 import { Readable } from 'stream';
 
@@ -32,18 +32,17 @@ export async function GET(request: NextRequest) {
         // Reconnect if adapter is missing (e.g., server restart or HMR)
         if (!adapter) {
             console.log(`[Stream] Adapter not found for ${storageId}, attempting to reconnect...`);
-            const storageCollection = await getStorageCollection();
-            const storage = await storageCollection.findOne({ id: storageId });
+            const storage = await getStorageConfigById(storageId);
 
             if (!storage) {
                 return NextResponse.json(
-                    { error: 'Storage not found in database' },
+                    { error: 'Storage not found in configuration' },
                     { status: 404 }
                 );
             }
 
             try {
-                adapter = storageManager.createAdapter(storage as any);
+                adapter = storageManager.createAdapter(storage);
                 await adapter.connect();
                 console.log(`[Stream] Reconnected adapter for ${storage.name}`);
             } catch (reconnectError: any) {

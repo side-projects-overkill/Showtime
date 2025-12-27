@@ -86,7 +86,7 @@ class StorageManager {
         const { loadStorageConfig, validateStorageConfig } = await import('@/lib/config/storage-config');
 
         try {
-            const configs = loadStorageConfig();
+            const configs = await loadStorageConfig();
 
             for (const config of configs) {
                 if (!validateStorageConfig(config)) {

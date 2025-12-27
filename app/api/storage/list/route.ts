@@ -9,10 +9,10 @@ import { loadStorageConfig } from '@/lib/config/storage-config';
  */
 export async function GET(request: NextRequest) {
     try {
-        const connections = loadStorageConfig();
+        const connections = await loadStorageConfig();
 
         // Remove sensitive information before sending to client
-        const safeConnections = connections.map(conn => ({
+        const safeConnections = connections.map((conn: any) => ({
             ...conn,
             password: undefined, // Don't send passwords to client
         }));

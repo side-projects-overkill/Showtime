@@ -109,12 +109,26 @@ Set `enabled: false` in the configuration:
 
 Simply delete or comment out the entry in `storage.config.yaml` and restart.
 
+## Public & Cloud Deployment (Vercel, Docker)
+
+For platforms like **Vercel** where you want to keep your configuration separate or easily updatable, use the **Remote YAML** method:
+
+Host your `storage.config.yaml` as a **private GitHub Gist** or safe snippet, and provide the **Raw URL**:
+
+1. Create a Gist with your YAML content.
+2. Click "Raw" to get the direct link.
+3. In Vercel Project Settings, add:
+   - **Key**: `STORAGE_CONFIG_URL`
+   - **Value**: `https://gist.githubusercontent.com/.../raw/.../storage.config.yaml`
+4. Redeploy. Showtime will fetch and cache this config.
+
+
 ## Security Notes
 
 ⚠️ **Important:**
 - `storage.config.yaml` is automatically excluded from git (in `.gitignore`)
 - Never commit this file to version control
-- Passwords are stored in plain text in the file, so protect file access on your server
+- If using `STORAGE_CONFIG_URL`, ensure the URL is **private** or restricted
 - The settings page is now read-only - users cannot add/remove/edit connections via the UI
 
 ## Public Deployment
@@ -132,14 +146,16 @@ This makes it safe to host a public demo without worrying about users modifying 
 
 ### Connections not loading
 
-- Check that `storage.config.yaml` exists in the project root
+- Check that `storage.config.yaml` exists in the project root OR `STORAGE_CONFIG_URL` is set in environment
+- If using `STORAGE_CONFIG_URL`, ensure it is a **Direct Raw Link** (e.g., raw.githubusercontent.com)
 - Verify YAML syntax is valid (use a YAML validator)
-- Check server logs for configuration errors
+- Check server logs for fetch or configuration errors
 - Ensure all required fields are present
 
 ### Changes not taking effect
 
-- Restart the application after editing the configuration file
+- **Note:** The configuration is cached for **30 seconds**. Wait or redeploy to force an update.
+- Restart the application after editing the local configuration file
 - Check that `enabled` is set to `true` (or unset, which defaults to true)
 
 ### Testing configuration

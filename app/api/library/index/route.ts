@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get storage connection from YAML config
-        const storage = getStorageConfigById(storageId);
+        const storage = await getStorageConfigById(storageId);
 
         if (!storage) {
             return NextResponse.json(

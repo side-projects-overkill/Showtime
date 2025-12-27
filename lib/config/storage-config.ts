@@ -1,3 +1,4 @@
+import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
@@ -10,29 +11,69 @@ interface StorageConfigFile {
     connections: StorageConfig[];
 }
 
-/**
- * Loads storage configuration from YAML file
- * @returns Array of storage configurations
- * @throws Error if config file cannot be read or parsed
- */
-export function loadStorageConfig(): StorageConfig[] {
-    const configPath = path.join(process.cwd(), 'storage.config.yaml');
-    const examplePath = path.join(process.cwd(), 'storage.config.example.yaml');
+// In-memory cache for configurations
+let cachedConfigs: StorageConfig[] | null = null;
+let lastLoadTime = 0;
+const CACHE_TTL = 30000; // 30 seconds
 
-    // Check if config file exists, otherwise use example
-    let fileToLoad = configPath;
-    if (!fs.existsSync(configPath)) {
-        console.warn('[Config] storage.config.yaml not found, using example config');
-        if (!fs.existsSync(examplePath)) {
-            console.warn('[Config] No storage configuration found, returning empty array');
-            return [];
+/**
+ * Loads storage configuration from Environment Variable, Remote URL, or YAML file.
+ * Includes caching to minimize network/filesystem overhead.
+ * 
+ * @returns Promise resolving to an array of storage configurations
+ */
+export async function loadStorageConfig(): Promise<StorageConfig[] | any> {
+    const now = Date.now();
+
+    // Return cached configs if within TTL
+    if (cachedConfigs && (now - lastLoadTime < CACHE_TTL)) {
+        return cachedConfigs;
+    }
+
+    let yamlContents: string | null = null;
+    let source = '';
+
+    // 1. Check for remote URL (Gist, raw snippet, etc)
+    if (process.env.STORAGE_CONFIG_URL) {
+        try {
+            console.log(`[Config] Fetching configuration from remote URL...`);
+            const response = await axios.get(process.env.STORAGE_CONFIG_URL);
+            yamlContents = typeof response.data === 'string' ? response.data : yaml.dump(response.data);
+            source = `Remote URL: ${process.env.STORAGE_CONFIG_URL}`;
+        } catch (error: any) {
+            console.error(`[Config] Failed to fetch remote configuration:`, error.message);
         }
-        fileToLoad = examplePath;
+    }
+
+    // 2. Fallback: Local Filesystem
+    if (!yamlContents) {
+        const configPath = path.join(process.cwd(), 'storage.config.yaml');
+        const examplePath = path.join(process.cwd(), 'storage.config.example.yaml');
+
+        let fileToLoad = configPath;
+        if (!fs.existsSync(configPath)) {
+            if (!fs.existsSync(examplePath)) {
+                console.warn('[Config] No storage configuration found (no env, url, or files)');
+                return [];
+            }
+            console.warn('[Config] storage.config.yaml not found, using example config');
+            fileToLoad = examplePath;
+        }
+
+        try {
+            yamlContents = fs.readFileSync(fileToLoad, 'utf8');
+            source = `Local file: ${path.basename(fileToLoad)}`;
+        } catch (error) {
+            console.error('[Config] Failed to read storage config file:', error);
+        }
+    }
+
+    if (!yamlContents) {
+        return [];
     }
 
     try {
-        const fileContents = fs.readFileSync(fileToLoad, 'utf8');
-        const config = yaml.load(fileContents) as StorageConfigFile;
+        const config = yaml.load(yamlContents) as StorageConfigFile;
 
         if (!config.connections || !Array.isArray(config.connections)) {
             console.error('[Config] Invalid storage config format, connections must be an array');
@@ -42,11 +83,15 @@ export function loadStorageConfig(): StorageConfig[] {
         // Filter to only enabled connections
         const enabledConnections = config.connections.filter(conn => conn.enabled !== false);
 
-        console.log(`[Config] Loaded ${enabledConnections.length} enabled storage connection(s) from ${path.basename(fileToLoad)}`);
+        // Update cache
+        cachedConfigs = enabledConnections;
+        lastLoadTime = now;
+
+        console.log(`[Config] Successfully loaded ${enabledConnections.length} connection(s) from ${source}`);
         return enabledConnections;
     } catch (error) {
-        console.error('[Config] Failed to load storage configuration:', error);
-        throw new Error(`Failed to load storage configuration: ${error}`);
+        console.error('[Config] Failed to parse storage configuration:', error);
+        return [];
     }
 }
 
@@ -75,7 +120,7 @@ export function validateStorageConfig(config: StorageConfig): boolean {
  * @param id Storage connection ID
  * @returns Storage config or null if not found
  */
-export function getStorageConfigById(id: string): StorageConfig | null {
-    const configs = loadStorageConfig();
-    return configs.find(c => c.id === id) || null;
+export async function getStorageConfigById(id: string): Promise<StorageConfig | null> {
+    const configs = await loadStorageConfig();
+    return configs.find((c: any) => c.id === id) || null;
 }
